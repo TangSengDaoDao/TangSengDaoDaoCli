@@ -48,3 +48,11 @@ tsdd stop
 
 ```
 
+
+## 卸载唐僧叨叨服务
+
+```shell
+
+tsdd uninstall
+
+```

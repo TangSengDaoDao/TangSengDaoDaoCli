@@ -73,10 +73,11 @@ func (t *TangSengDaoDaoContext) DockerComposeUp(configs []string) error {
 
 	composeProjectOpts := composecmd.ProjectOptions{
 		ProjectName: "tsdd",
+		ProjectDir:  t.opts.rootDir,
 		ConfigPaths: configs,
 	}
 
-	project, err := composeProjectOpts.ToProject(nil, cli.WithName("tsdd"))
+	project, err := composeProjectOpts.ToProject(nil, cli.WithName("tsdd"), cli.WithDotEnv)
 	if err != nil {
 		return err
 	}

@@ -13,23 +13,23 @@ mode: "debug" #   运行模式 debug or release
 #eventPoolSize: 100 # 事件池大小
 
 ##################### 悟空IM配置 ####################
-#wukongIM:
-#  apiURL: "" # 悟空IM的api地址 格式： http://xx.xx.xx.xx:5100
-#  managerToken: "" # 悟空IM的管理者token 悟空IM配置了就需要填写，没配置就不需要
+wukongIM:
+ apiURL: "http://wukongim:5001" # 悟空IM的api地址 格式： http://xx.xx.xx.xx:5001
+ managerToken: "" # 悟空IM的管理者token 悟空IM配置了就需要填写，没配置就不需要
 
 ##################### db ####################
-#db:
-#  mysqlAddr: "root:demo@tcp(127.0.0.1:3306)/test?charset=utf8mb4&parseTime=true" # mysql连接地址
-#  sqlDir: "assets/sql" # 数据库脚本路径
-#  migration: true #  是否合并数据库
-#  redisAddr: "" # redis地址
-#  asynctaskRedisAddr: "" # 异步任务的redis地址 不写默认为RedisAddr的地址
+db:
+ mysqlAddr: "root:#MYSQL_ROOT_PASSWORD#@tcp(mysql)/im?charset=utf8mb4&parseTime=true&loc=Local" # mysql连接地址
+ redisAddr: "redis:6379" # redis地址
+ #sqlDir: "assets/sql" # 数据库脚本路径
+ #migration: true #  是否合并数据库
+ #asynctaskRedisAddr: "" # 异步任务的redis地址 不写默认为RedisAddr的地址
 
 ##################### 外网配置 ####################
-#external: 
-#  ip: "" # 外网ip
-#  baseURL: "" # 外网访问地址 例如 http://10.2.3.1:8090
-#  webLoginURL: "" # web im的登录地址 例如 https://web.tangsengdaodao.com
+external: 
+ ip: "#EXTERNAL_IP#" # 外网ip
+ #baseURL: "" # 外网访问地址 例如 http://10.2.3.1:8090
+ #webLoginURL: "" # web im的登录地址 例如 https://web.tangsengdaodao.com
 
 ##################### 日志配置 ####################
 #logger: 
@@ -38,7 +38,7 @@ mode: "debug" #   运行模式 debug or release
 #  lineNum: false # 是否打印行号
 
 ##################### 短信配置 ####################
-#smsCode: "" # 测试短信验证码， 如果不为空，则短信验证码为该值。
+smsCode: "123456" # 测试短信验证码， 如果不为空，则短信验证码为该值。
 #smsProvider: "aliyun" # 短信服务商. 例如: aliyun or unisms
 #aliyunSMS:
 #  accessKeyID: "" # 阿里云短信accessKeyID
@@ -53,11 +53,11 @@ mode: "debug" #   运行模式 debug or release
 #  signature: "" # unisms signature  
 
 ##################### 文件服务 ####################
-#fileService: "minio" # 文件服务 minio or oss or seaweed
-#minio: # minio配置
-#  url: "" # minio地址 格式：http://xx.xx.xx.xx:9000
-#  accessKeyID: "" # minio accessKeyID
-#  secretAccessKey: ""  # minio secretAccessKey
+fileService: "minio" # 文件服务 minio or oss or seaweed
+minio: # minio配置
+#  url: "" # minio地址 格式：http://xx.xx.xx.xx:9000 
+ accessKeyID: "minio" # minio accessKeyID
+ secretAccessKey: "#MINIO_ROOT_PASSWORD#"  # minio secretAccessKey
 #oss:  # aliyun oss配置
 #  endpoint: "" # oss endpoint 例如 oss-cn-hangzhou.aliyuncs.com
 #  bucketURL: "" # oss bucketURL 例如 https://xxxx.oss-cn-hangzhou.aliyuncs.com
