@@ -1,0 +1,10 @@
+{
+    "go.alternateTools": {
+    
+    },
+    // "go.toolsEnvVars": {
+    //     "GOARCH":"amd64",
+    //     "GOOS":"windows"
+    // },
+    "go.testFlags": ["-v"]
+}
