@@ -16,8 +16,8 @@ on:
   push:
     tags:
       - "*.*.*"
-
-permissions: read-all
+permissions:
+  contents: write
 
 jobs:
   # Generate ldflags dynamically.

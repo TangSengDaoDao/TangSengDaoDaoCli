@@ -17,10 +17,14 @@ builds:
     goarch:
       - amd64
       - arm64
-    # overrides:
-    #   - goos: linux
-    #     goarch: amd64
-    #     env:
-    #       - CC=gcc
+    overrides:
+      - goos: linux
+        goarch: amd64
+        env:
+          - CC=gcc
+      - goos: linux
+        goarch: arm64
+        env:
+          - CC=gcc    
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
