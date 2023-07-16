@@ -25,6 +25,6 @@ builds:
       - goos: linux
         goarch: arm64
         env:
-          - CC=gcc    
+          - CC=aarch64-linux-gnu-gcc    
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
