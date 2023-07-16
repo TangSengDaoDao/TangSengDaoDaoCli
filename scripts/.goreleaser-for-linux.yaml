@@ -27,4 +27,8 @@ builds:
         env:
           - CC=aarch64-linux-gnu-gcc    
 archives:
-  name_template: "tsddcli_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - replacements:
+      darwin: Darwin
+      linux: Linux
+      amd64: x86_64
+    name_template: "tsddcli_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
