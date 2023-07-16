@@ -13,16 +13,16 @@
 
 name: SLSA Go releaser
 on:
-  workflow_dispatch:
-  release:
-    types: [created]
+  push:
+    tags:
+      - "*.*.*"
 
 permissions: read-all
 
 jobs:
   # Generate ldflags dynamically.
   # Optional: only needed for ldflags.
-  args-linux:
+  args:
     runs-on: ubuntu-latest
     outputs:
       commit-date: ${{ steps.ldflags.outputs.commit-date }}
@@ -31,7 +31,7 @@ jobs:
       tree-state: ${{ steps.ldflags.outputs.tree-state }}
     steps:
       - id: checkout
-        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # tag=v2.3.4
+        uses: actions/checkout@v3 # tag=v2.3.4
         with:
           fetch-depth: 0
       - id: ldflags
@@ -39,124 +39,78 @@ jobs:
           echo "commit-date=$(git log --date=iso8601-strict -1 --pretty=%ct)" >> "$GITHUB_OUTPUT"
           echo "commit=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
           echo "version=$(git describe --tags --always --dirty | cut -c2-)" >> "$GITHUB_OUTPUT"
-          echo "tree-state=$(if git diff --quiet; then echo "clean"; else echo "dirty"; fi)" >> "$GITHUB_OUTPUT"   
-  args-darwin:
-    runs-on: macos-latest
-    outputs:
-      commit-date: ${{ steps.ldflags.outputs.commit-date }}
-      commit: ${{ steps.ldflags.outputs.commit }}
-      version: ${{ steps.ldflags.outputs.version }}
-      tree-state: ${{ steps.ldflags.outputs.tree-state }}
-    steps:
-      - id: checkout
-        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # tag=v2.3.4
-        with:
-          fetch-depth: 0
-      - id: ldflags
-        run: |
-          echo "commit-date=$(git log --date=iso8601-strict -1 --pretty=%ct)" >> "$GITHUB_OUTPUT"
-          echo "commit=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
-          echo "version=$(git describe --tags --always --dirty | cut -c2-)" >> "$GITHUB_OUTPUT"
-          echo "tree-state=$(if git diff --quiet; then echo "clean"; else echo "dirty"; fi)" >> "$GITHUB_OUTPUT"             
+          echo "tree-state=$(if git diff --quiet; then echo "clean"; else echo "dirty"; fi)" >> "$GITHUB_OUTPUT"            
             
   # Trusted builder.
-  build-linux:
-    permissions:
-      id-token: write # To sign the provenance.
-      contents: write # To upload assets to release.
-      actions: read # To read the workflow path.
-    needs: args-linux
-    strategy:
-      matrix:
-        os:
-          - linux
-        arch:
-          - amd64
-          - arm64
-    uses: tangtaoit/slsa-github-generator/.github/workflows/builder_go_slsa3.yml@v1.5.0
-    with:
-      go-version: 1.20.3
-      # Optional: only needed if using ldflags.
-      evaluated-envs: "COMMIT_DATE:${{needs.args-linux.outputs.commit-date}}, COMMIT:${{needs.args-linux.outputs.commit}}, VERSION:${{needs.args-linux.outputs.version}}, TREE_STATE:${{needs.args-linux.outputs.tree-state}}"
-      config-file: slsa/goreleaser-${{matrix.os}}-${{matrix.arch}}.yml
-  build-darwin:
-    permissions:
-      id-token: write # To sign the provenance.
-      contents: write # To upload assets to release.
-      actions: read # To read the workflow path.
-    needs: args-darwin
-    strategy:
-      matrix:
-        os:
-          - darwin
-        arch:
-          - amd64
-          - arm64
-    uses: tangtaoit/slsa-github-generator/.github/workflows/builder_go_slsa3.yml@v1.5.0
-    with:
-      build-os: macos-lastest
-      go-version: 1.20.3
-      # Optional: only needed if using ldflags.
-      evaluated-envs: "COMMIT_DATE:${{needs.args-darwin.outputs.commit-date}}, COMMIT:${{needs.args-darwin.outputs.commit}}, VERSION:${{needs.args-darwin.outputs.version}}, TREE_STATE:${{needs.args-darwin.outputs.tree-state}}"
-      config-file: slsa/goreleaser-${{matrix.os}}-${{matrix.arch}}.yml    
-
-  verification-linux:
-    needs:
-      - build-linux
+  release-linux-binary:
+    needs: args
     runs-on: ubuntu-latest
-    permissions: read-all
     steps:
-      - name: Install the verifier
-        uses: slsa-framework/slsa-verifier/actions/installer@v2.1.0
-
-      - name: Download assets
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version: 1.20.3
+          check-latest: true
+          cache: true
+      - name: Install cross-compiler for linux/arm64
+        run: sudo apt-get -y install gcc-aarch64-linux-gnu    
+      - name: Release
+        uses: goreleaser/goreleaser-action@v4
+        with:
+          args: release --config scripts/.goreleaser-for-linux.yaml
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ATT_FILE_NAME: "${{ needs.build-linux.outputs.go-binary-name }}.intoto.jsonl"
-          ARTIFACT: ${{ needs.build-linux.outputs.go-binary-name }}
-        run: |
-          set -euo pipefail
-          gh -R "$GITHUB_REPOSITORY" release download "$GITHUB_REF_NAME" -p $ARTIFACT
-          gh -R "$GITHUB_REPOSITORY" release download "$GITHUB_REF_NAME" -p "$ATT_FILE_NAME"
-      - name: Verify assets
-        env:
-          ARTIFACT: ${{ needs.build-linux.outputs.go-binary-name }}
-          ATT_FILE_NAME: "${{ needs.build-linux.outputs.go-binary-name }}.intoto.jsonl"
-        run: |
-          set -euo pipefail
-              
-          echo "Verifying $ARTIFACT using $ATT_FILE_NAME"
-          slsa-verifier verify-artifact --provenance-path "$ATT_FILE_NAME" \
-                                        --source-uri "github.com/$GITHUB_REPOSITORY" \
-                                        --source-tag "$GITHUB_REF_NAME" \
-                                        "$ARTIFACT"
-  verification-darwin:
-    needs:
-      - build-darwin
-    runs-on: ubuntu-latest
-    permissions: read-all
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
+  release-darwin-binary:
+    needs: args
+    runs-on: macos-latest
     steps:
-      - name: Install the verifier
-        uses: slsa-framework/slsa-verifier/actions/installer@v2.1.0
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version: 1.20.3
+          check-latest: true
+          cache: true
+      - name: Release
+        uses: goreleaser/goreleaser-action@v4
+        with:
+          args: release --config scripts/.goreleaser-for-darwin.yaml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}           
+    # uses: tangtaoit/slsa-github-generator/.github/workflows/builder_go_slsa3.yml@v1.5.0
+    # with:
+    #   go-version: 1.20.3
+    #   # Optional: only needed if using ldflags.
+    #   evaluated-envs: "COMMIT_DATE:${{needs.args.outputs.commit-date}}, COMMIT:${{needs.args.outputs.commit}}, VERSION:${{needs.args.outputs.version}}, TREE_STATE:${{needs.args.outputs.tree-state}}"
+    #   config-file: slsa/goreleaser-${{matrix.os}}-${{matrix.arch}}.yml
 
-      - name: Download assets
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ATT_FILE_NAME: "${{ needs.build-darwin.outputs.go-binary-name }}.intoto.jsonl"
-          ARTIFACT: ${{ needs.build-darwin.outputs.go-binary-name }}
-        run: |
-          set -euo pipefail
-          gh -R "$GITHUB_REPOSITORY" release download "$GITHUB_REF_NAME" -p $ARTIFACT
-          gh -R "$GITHUB_REPOSITORY" release download "$GITHUB_REF_NAME" -p "$ATT_FILE_NAME"
-      - name: Verify assets
-        env:
-          ARTIFACT: ${{ needs.build-darwin.outputs.go-binary-name }}
-          ATT_FILE_NAME: "${{ needs.build-darwin.outputs.go-binary-name }}.intoto.jsonl"
-        run: |
-          set -euo pipefail
+
+  # verification-linux:
+  #   needs:
+  #     - build-linux
+  #   runs-on: ubuntu-latest
+  #   permissions: read-all
+  #   steps:
+  #     - name: Install the verifier
+  #       uses: slsa-framework/slsa-verifier/actions/installer@v2.1.0
+
+  #     - name: Download assets
+  #       env:
+  #         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #         ATT_FILE_NAME: "${{ needs.build-linux.outputs.go-binary-name }}.intoto.jsonl"
+  #         ARTIFACT: ${{ needs.build-linux.outputs.go-binary-name }}
+  #       run: |
+  #         set -euo pipefail
+  #         gh -R "$GITHUB_REPOSITORY" release download "$GITHUB_REF_NAME" -p $ARTIFACT
+  #         gh -R "$GITHUB_REPOSITORY" release download "$GITHUB_REF_NAME" -p "$ATT_FILE_NAME"
+  #     - name: Verify assets
+  #       env:
+  #         ARTIFACT: ${{ needs.build-linux.outputs.go-binary-name }}
+  #         ATT_FILE_NAME: "${{ needs.build-linux.outputs.go-binary-name }}.intoto.jsonl"
+  #       run: |
+  #         set -euo pipefail
               
-          echo "Verifying $ARTIFACT using $ATT_FILE_NAME"
-          slsa-verifier verify-artifact --provenance-path "$ATT_FILE_NAME" \
-                                        --source-uri "github.com/$GITHUB_REPOSITORY" \
-                                        --source-tag "$GITHUB_REF_NAME" \
-                                        "$ARTIFACT"                                      
+  #         echo "Verifying $ARTIFACT using $ATT_FILE_NAME"
+  #         slsa-verifier verify-artifact --provenance-path "$ATT_FILE_NAME" \
+  #                                       --source-uri "github.com/$GITHUB_REPOSITORY" \
+  #                                       --source-tag "$GITHUB_REF_NAME" \
+  #                                       "$ARTIFACT"

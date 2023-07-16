@@ -1,0 +1,25 @@
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - id: server
+    main: ./main.go
+    binary: tsddcli
+    ldflags:
+      - -w -s
+    tags:
+      - release
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+archives:
+  - replacements:
+      darwin: Darwin
+      linux: Linux
+      amd64: x86_64
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"

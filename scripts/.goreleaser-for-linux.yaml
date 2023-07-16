@@ -1,0 +1,31 @@
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - id: server
+    main: ./main.go
+    binary: tsddcli
+    ldflags:
+      - -w -s
+    tags:
+      - release
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - linux
+    # We currently cannot run mysqlbinlog on arm64.
+    goarch:
+      - amd64
+      - arm64
+    # overrides:
+    #   - goos: linux
+    #     goarch: amd64
+    #     env:
+    #       - CC=gcc
+archives:
+  - replacements:
+      darwin: Darwin
+      linux: Linux
+      amd64: x86_64
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
