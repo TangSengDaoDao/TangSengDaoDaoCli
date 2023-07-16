@@ -42,8 +42,8 @@ else
   exit 1
 fi
 
-echo "Dolowadning TangSengDaoDaoCli for $OS/$REALARCH ..."
+echo "Dolowadning tsddcli for $OS/$REALARCH ..."
 
 # 下载 curl
-curl -L "https://gitee.com/TangSengDaoDao/TangSengDaoDaoCli/releases/download/$VERSION/tangsengdaodaocli-$OS-$REALARCH" -o /usr/local/bin/tsdd
+curl -L "https://gitee.com/TangSengDaoDao/TangSengDaoDaoCli/releases/download/$VERSION/tsddcli-$OS-$REALARCH" -o /usr/local/bin/tsdd
 chmod +x /usr/local/bin/tsdd

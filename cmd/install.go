@@ -3,22 +3,16 @@ package cmd
 import (
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path"
 	"strings"
-	"time"
 
 	"github.com/TangSengDaoDao/TangSengDaoDaoCli/pkg/util"
 	"github.com/spf13/cobra"
 )
 
 type installCMD struct {
-	ctx                  *TangSengDaoDaoContext
-	dockerComposeFileUrl string // docker-compose.yaml文件的下载地址
-	dotEnvFileUrl        string // .env文件的下载地址
-	wkConfigUrl          string // 悟空IM的配置文件的下载地址
-	tsddConfigUrl        string // 唐僧叨叨的配置文件的下载地址
+	ctx *TangSengDaoDaoContext
 
 	externalIP string // 外网IP
 	mysqlPwd   string // mysql密码
@@ -26,13 +20,8 @@ type installCMD struct {
 }
 
 func newInstallCMD(ctx *TangSengDaoDaoContext) *installCMD {
-	baseURL := "https://gitee.com/TangSengDaoDao/TangSengDaoDaoCli/raw/main"
 	c := &installCMD{
-		ctx:                  ctx,
-		dockerComposeFileUrl: fmt.Sprintf("%s/docker-compose.yaml", baseURL),
-		dotEnvFileUrl:        fmt.Sprintf("%s/.env", baseURL),
-		wkConfigUrl:          fmt.Sprintf("%s/configs/wk.yaml", baseURL),
-		tsddConfigUrl:        fmt.Sprintf("%s/configs/tsdd.yaml", baseURL),
+		ctx: ctx,
 	}
 
 	return c
@@ -46,6 +35,11 @@ func (i *installCMD) CMD() *cobra.Command {
 	}
 	installCmd.Flags().StringVar(&i.externalIP, "ip", "", "external ip （外网IP）")
 
+	err := os.MkdirAll(i.configDir(), 0755)
+	if err != nil {
+		panic(err)
+	}
+
 	i.mysqlPwd = util.GenUUID()[:16]
 	i.minioPwd = util.GenUUID()
 
@@ -53,6 +47,12 @@ func (i *installCMD) CMD() *cobra.Command {
 }
 
 func (i *installCMD) run(cmd *cobra.Command, args []string) error {
+	if strings.TrimSpace(i.externalIP) == "" {
+		ips, _ := util.GetIntranetIP()
+		if len(ips) > 0 {
+			i.externalIP = ips[0]
+		}
+	}
 	var err error
 	// ==================== 下载docker-compose.yaml文件 ====================
 	if !i.existDockerCompose() {
@@ -107,13 +107,15 @@ func (i *installCMD) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// ==================== 启动服务 ====================
-	return i.ctx.DockerComposeUp([]string{"docker-compose.yaml"})
+	fmt.Println("Install at ", i.ctx.opts.rootDir)
+	fmt.Println("Install success! please run 'tsdd start' to start service.")
+
+	return nil
 }
 
 // 取代.env文件中的变量
 func (i *installCMD) replaceDotEnvVarz() error {
-	dotEnvPath := path.Join(i.configDir(), ".env")
+	dotEnvPath := i.dotEnvPath()
 	content, err := ioutil.ReadFile(dotEnvPath)
 	if err != nil {
 		return err
@@ -125,13 +127,15 @@ func (i *installCMD) replaceDotEnvVarz() error {
 	contentStr = strings.ReplaceAll(contentStr, "#MINIO_BROWSER_REDIRECT_URL#", "")
 	// mysql
 	contentStr = strings.ReplaceAll(contentStr, "#MYSQL_ROOT_PASSWORD#", i.mysqlPwd)
+	// web
+	contentStr = strings.ReplaceAll(contentStr, "#API_URL#", fmt.Sprintf("http://%s:8090/", i.externalIP))
 	err = ioutil.WriteFile(dotEnvPath, []byte(contentStr), 0644)
 	return err
 }
 
 // 取代悟空IM的配置文件中的变量
 func (i *installCMD) replaceWkConfigVarz() error {
-	confPath := path.Join(i.configDir(), "configs", "wk.yaml")
+	confPath := i.wkConfigPath()
 	content, err := ioutil.ReadFile(confPath)
 	if err != nil {
 		return err
@@ -145,7 +149,7 @@ func (i *installCMD) replaceWkConfigVarz() error {
 }
 
 func (i *installCMD) replaceTsddConfigVarz() error {
-	confPath := path.Join(i.configDir(), "configs", "tsdd.yaml")
+	confPath := i.tsddConfigPath()
 	content, err := ioutil.ReadFile(confPath)
 	if err != nil {
 		return err
@@ -154,103 +158,76 @@ func (i *installCMD) replaceTsddConfigVarz() error {
 	contentStr = strings.ReplaceAll(contentStr, "#EXTERNAL_IP#", i.externalIP)
 	contentStr = strings.ReplaceAll(contentStr, "#MYSQL_ROOT_PASSWORD#", i.mysqlPwd)
 	contentStr = strings.ReplaceAll(contentStr, "#MINIO_ROOT_PASSWORD#", i.minioPwd)
+
 	err = ioutil.WriteFile(confPath, []byte(contentStr), 0644)
 	return err
 }
 
 // 下载docker-compose.yaml文件
 func (i *installCMD) downloadDockerCompose(cmd *cobra.Command) error {
-	cmd.Println("download docker-compose.yaml file from ", i.dockerComposeFileUrl)
 	// 下载文件
-	tmpDir, _ := ioutil.TempDir("", "tsddcli")
-	tmpPath := path.Join(tmpDir, "docker-compose.yaml.tmp")
-	destPath := path.Join(i.configDir(), "docker-compose.yaml")
-	err := i.download(i.dockerComposeFileUrl, tmpPath)
-	if err != nil {
-		return err
-	}
-	return move(tmpPath, destPath)
+	destPath := i.dockerComposePath()
+	return ioutil.WriteFile(destPath, []byte(i.ctx.DockerComposeYaml), 0644)
 }
 func (i *installCMD) existDockerCompose() bool {
-	return i.existFile(path.Join(i.configDir(), "docker-compose.yaml"))
+	return i.existFile(i.dockerComposePath())
 }
 
 // 下载.env文件
 func (i *installCMD) downloadDotEnv(cmd *cobra.Command) error {
-	cmd.Println("download .env file from ", i.dotEnvFileUrl)
 	// 下载文件
-	tmpDir, _ := ioutil.TempDir("", "tsddcli")
-	tmpPath := path.Join(tmpDir, ".env.tmp")
-	destPath := path.Join(i.configDir(), ".env")
-	err := i.download(i.dotEnvFileUrl, tmpPath)
-	if err != nil {
-		return err
-	}
-	return move(tmpPath, destPath)
+	destPath := i.dotEnvPath()
+	return ioutil.WriteFile(destPath, []byte(i.ctx.DotEnv), 0644)
 }
 func (i *installCMD) existDotEnv() bool {
-	return i.existFile(path.Join(i.configDir(), ".env"))
+	return i.existFile(i.dotEnvPath())
 }
 
 // 下载悟空IM的配置文件
 func (i *installCMD) downloadWkConfig(cmd *cobra.Command) error {
-	cmd.Println("download wk.yaml file from ", i.wkConfigUrl)
-	// 下载文件
-	tmpDir, _ := ioutil.TempDir("", "tsddcli")
-	tmpPath := path.Join(tmpDir, ".wk.yaml.tmp")
-	destPath := path.Join(i.configDir(), "wk.yaml")
-	err := i.download(i.wkConfigUrl, tmpPath)
+
+	wkContentBytes, err := i.ctx.Configs.ReadFile("configs/wk.yaml")
 	if err != nil {
 		return err
 	}
-	return move(tmpPath, destPath)
+	destPath := path.Join(i.configDir(), "wk.yaml")
+
+	return ioutil.WriteFile(destPath, []byte(wkContentBytes), 0644)
 }
 func (i *installCMD) existWkConfig() bool {
-	return i.existFile(path.Join(i.configDir(), "wk.yaml"))
+	return i.existFile(i.wkConfigPath())
 }
 
 // 下载唐僧叨叨的配置文件
 func (i *installCMD) downloadTsddConfig(cmd *cobra.Command) error {
-	cmd.Println("download tsdd.yaml file from ", i.tsddConfigUrl)
-	// 下载文件
-	tmpDir, _ := ioutil.TempDir("", "tsddcli")
-	tmpPath := path.Join(tmpDir, ".tsdd.yaml.tmp")
-	destPath := path.Join(i.configDir(), "tsdd.yaml")
-	err := i.download(i.tsddConfigUrl, tmpPath)
+	tsddContentBytes, err := i.ctx.Configs.ReadFile("configs/tsdd.yaml")
 	if err != nil {
 		return err
 	}
-	return move(tmpPath, destPath)
+	destPath := i.tsddConfigPath()
+	return ioutil.WriteFile(destPath, []byte(tsddContentBytes), 0644)
 }
 func (i *installCMD) existTsddConfig() bool {
-	return i.existFile(path.Join(i.configDir(), "tsdd.yaml"))
+	return i.existFile(i.tsddConfigPath())
+}
+
+func (i *installCMD) dotEnvPath() string {
+	return path.Join(i.ctx.opts.rootDir, ".env")
+}
+func (i *installCMD) dockerComposePath() string {
+	return i.ctx.opts.dockerComposePath
+}
+func (i *installCMD) wkConfigPath() string {
+	return path.Join(i.configDir(), "wk.yaml")
+}
+func (i *installCMD) tsddConfigPath() string {
+	return path.Join(i.configDir(), "tsdd.yaml")
 }
 
 // 获取配置目录
 func (i *installCMD) configDir() string {
 
 	return path.Join(i.ctx.opts.rootDir, "configs")
-}
-
-// 下载文件
-func (i *installCMD) download(url string, destPath string) error {
-	client := http.DefaultClient
-	client.Timeout = 60 * 10 * time.Second
-	reps, err := client.Get(url)
-	if err != nil {
-		return err
-	}
-	defer reps.Body.Close()
-	if reps.StatusCode != http.StatusOK {
-		return fmt.Errorf("http status[%d] is error", reps.StatusCode)
-	}
-	//保存文件
-	file, err := os.Create(destPath)
-	if err != nil {
-		return err
-	}
-	defer file.Close() //关闭文件
-	return nil
 }
 
 func (i *installCMD) existFile(p string) bool {

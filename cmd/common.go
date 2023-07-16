@@ -18,10 +18,17 @@ type CMD interface {
 }
 
 type Options struct {
-	ServerAddr  string
-	Description string
-	Token       string
-	rootDir     string // 唐僧叨叨的根目录
+	ServerAddr        string
+	Description       string
+	Token             string
+	rootDir           string // 唐僧叨叨的根目录
+	projectName       string
+	dockerComposePath string // docker compose yaml 文件路径
+
+	Version    string // version
+	Commit     string // git commit id
+	CommitDate string // git commit date
+	TreeState  string // git tree state
 }
 
 func NewOptions() *Options {
@@ -30,10 +37,11 @@ func NewOptions() *Options {
 		panic(err)
 	}
 	opts := &Options{
+		projectName: "tsdd",
 		ServerAddr:  "http://127.0.0.1:5001",
 		Description: "",
-		rootDir:     filepath.Join(homeDir, "tangsengdaodao"),
 	}
+	opts.rootDir = filepath.Join(homeDir, opts.projectName)
 	// 创建唐僧叨叨的根目录
 	err = os.MkdirAll(opts.rootDir, 0700)
 	if err != nil {
@@ -44,6 +52,7 @@ func NewOptions() *Options {
 	if err != nil {
 		panic(err)
 	}
+	opts.dockerComposePath = filepath.Join(opts.rootDir, "docker-compose.yaml")
 	return opts
 }
 

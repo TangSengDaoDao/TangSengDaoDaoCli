@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"embed"
 	"errors"
 	"fmt"
 	"os"
@@ -15,7 +16,6 @@ import (
 	"github.com/docker/cli/cli/config/configfile"
 	"github.com/docker/cli/cli/flags"
 	composecmd "github.com/docker/compose/v2/cmd/compose"
-	"github.com/docker/compose/v2/cmd/formatter"
 	"github.com/docker/compose/v2/pkg/api"
 	"github.com/docker/compose/v2/pkg/compose"
 	"github.com/docker/compose/v2/pkg/utils"
@@ -23,9 +23,12 @@ import (
 )
 
 type TangSengDaoDaoContext struct {
-	opts          *Options
-	w             *TangSengDaoDao
-	dockerCompose api.Service
+	opts              *Options
+	w                 *TangSengDaoDao
+	dockerCompose     api.Service
+	DockerComposeYaml string // docker compose yaml 文件内容
+	DotEnv            string // .env文件内容
+	Configs           embed.FS
 }
 
 func NewTangSengDaoDaoContext(w *TangSengDaoDao) *TangSengDaoDaoContext {
@@ -63,26 +66,73 @@ func (t *TangSengDaoDaoContext) DockerCompose() api.Service {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("zzzz-end")
-
-	t.dockerCompose = compose.NewComposeService(dockerCli)
+	t.dockerCompose = api.NewServiceProxy().WithService(compose.NewComposeService(dockerCli))
 	return t.dockerCompose
 }
 
 func (t *TangSengDaoDaoContext) DockerComposeUp(configs []string) error {
 
-	composeProjectOpts := composecmd.ProjectOptions{
-		ProjectName: "tsdd",
-		ProjectDir:  t.opts.rootDir,
-		ConfigPaths: configs,
-	}
-
-	project, err := composeProjectOpts.ToProject(nil, cli.WithName("tsdd"), cli.WithDotEnv)
+	project, err := t.getDockerProject(configs)
 	if err != nil {
 		return err
 	}
 
 	return t.dockerComposeUp(project)
+}
+
+func (t *TangSengDaoDaoContext) DockerComposeStop(configs []string) error {
+	project, err := t.getDockerProject(configs)
+	if err != nil {
+		return err
+	}
+	return t.dockerComposeStop(project)
+}
+
+func (t *TangSengDaoDaoContext) DockerComposeDown(configs []string) error {
+	project, err := t.getDockerProject(configs)
+	if err != nil {
+		return err
+	}
+	return t.dockerComposeDown(project)
+}
+
+func (t *TangSengDaoDaoContext) DockerComposeRemove(configs []string) error {
+	project, err := t.getDockerProject(configs)
+	if err != nil {
+		return err
+	}
+	return t.dockerComposeRemove(project)
+}
+func (t *TangSengDaoDaoContext) DockerComposePs(configs []string) ([]api.ContainerSummary, error) {
+	project, err := t.getDockerProject(configs)
+	if err != nil {
+		return nil, err
+	}
+	return t.dockerComposePs(project)
+}
+
+func (t *TangSengDaoDaoContext) DockerComposeServices() []string {
+	project, err := t.getDockerProject([]string{t.opts.dockerComposePath})
+	if err != nil {
+		return nil
+	}
+	return project.ServiceNames()
+}
+
+func (t *TangSengDaoDaoContext) DockerComposePull(configs []string, services ...string) error {
+	project, err := t.getDockerProject(configs, services...)
+	if err != nil {
+		return err
+	}
+	return t.dockerComposePull(project)
+}
+
+func (t *TangSengDaoDaoContext) DockerComposeConfig(configs []string) ([]byte, error) {
+	project, err := t.getDockerProject(configs)
+	if err != nil {
+		return nil, err
+	}
+	return t.dockerComposeConfig(project)
 }
 
 func (t *TangSengDaoDaoContext) dockerComposeUp(project *types.Project) error {
@@ -97,19 +147,77 @@ func (t *TangSengDaoDaoContext) dockerComposeUp(project *types.Project) error {
 		Timeout:       &timeout,
 	}
 	attachTo := utils.Set[string]{}
-	consumer := formatter.NewLogConsumer(ctx, os.Stdout, os.Stderr, true, true, true)
+	// consumer := formatter.NewLogConsumer(ctx, os.Stdout, os.Stderr, true, true, true)
 	err := t.DockerCompose().Up(ctx, project, api.UpOptions{
 		Create: create,
 		Start: api.StartOptions{
-			Project:     project,
-			AttachTo:    attachTo.Elements(),
-			Attach:      consumer,
+			Project:  project,
+			AttachTo: attachTo.Elements(),
+			// Attach:      consumer,
 			CascadeStop: false, // 在容器停止时停止应用程序
 			Wait:        false, // Wait函数将等待容器达到运行或健康状态，直到返回
-			WaitTimeout: time.Minute * 2,
+			WaitTimeout: time.Minute * 5,
 		},
 	})
 	return err
+}
+
+func (t *TangSengDaoDaoContext) dockerComposePs(project *types.Project) ([]api.ContainerSummary, error) {
+	ctx := context.Background()
+	return t.DockerCompose().Ps(ctx, t.opts.projectName, api.PsOptions{
+		Project: project,
+		All:     true,
+	})
+}
+
+func (t *TangSengDaoDaoContext) getDockerProject(configs []string, services ...string) (*types.Project, error) {
+	composeProjectOpts := composecmd.ProjectOptions{
+		ProjectName: t.opts.projectName,
+		ProjectDir:  t.opts.rootDir,
+		ConfigPaths: configs,
+	}
+
+	project, err := composeProjectOpts.ToProject(services, cli.WithName(t.opts.projectName), cli.WithDotEnv, cli.WithOsEnv, cli.WithDiscardEnvFile, cli.WithResolvedPaths(true))
+	if err != nil {
+		return nil, err
+	}
+	return project, nil
+}
+
+func (t *TangSengDaoDaoContext) dockerComposeStop(project *types.Project) error {
+	ctx := context.Background()
+	return t.DockerCompose().Stop(ctx, t.opts.projectName, api.StopOptions{
+		Project: project,
+	})
+}
+
+func (t *TangSengDaoDaoContext) dockerComposeRemove(project *types.Project) error {
+	ctx := context.Background()
+	return t.DockerCompose().Remove(ctx, t.opts.projectName, api.RemoveOptions{
+		Project: project,
+		Force:   true,
+	})
+}
+
+func (t *TangSengDaoDaoContext) dockerComposeDown(project *types.Project) error {
+	ctx := context.Background()
+	return t.DockerCompose().Down(ctx, t.opts.projectName, api.DownOptions{
+		Project: project,
+	})
+}
+
+func (t *TangSengDaoDaoContext) dockerComposePull(project *types.Project) error {
+	ctx := context.Background()
+	return t.DockerCompose().Pull(ctx, project, api.PullOptions{
+		Quiet: false,
+	})
+}
+
+func (t *TangSengDaoDaoContext) dockerComposeConfig(project *types.Project) ([]byte, error) {
+	ctx := context.Background()
+	return t.DockerCompose().Config(ctx, project, api.ConfigOptions{
+		Format: "yaml",
+	})
 }
 
 func (t *TangSengDaoDaoContext) findDockerSock() (string, error) {
