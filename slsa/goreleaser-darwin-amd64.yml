@@ -5,6 +5,7 @@ version: 1
 env:
   - GO111MODULE=on
   - CGO_ENABLED=1
+  - CC=x86_64-apple-darwin
 
 # (Optional) Flags for the compiler.
 flags:
