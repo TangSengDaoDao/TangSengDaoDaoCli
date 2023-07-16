@@ -40,6 +40,12 @@ jobs:
           echo "commit=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
           echo "version=$(git describe --tags --always --dirty | cut -c2-)" >> "$GITHUB_OUTPUT"
           echo "tree-state=$(if git diff --quiet; then echo "clean"; else echo "dirty"; fi)" >> "$GITHUB_OUTPUT"
+      - name: Set up Clang
+        uses: egor-tensin/setup-clang@v1
+        with:
+            version: latest
+            platform: x64    
+            
   # Trusted builder.
   build:
     permissions:
