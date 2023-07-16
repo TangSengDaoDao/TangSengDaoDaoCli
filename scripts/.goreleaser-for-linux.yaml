@@ -26,5 +26,5 @@ builds:
         goarch: arm64
         env:
           - CC=aarch64-linux-gnu-gcc    
-snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+archives:
+  name_template: "tsddcli_{{ .Version }}_{{ .Os }}_{{ .Arch }}"

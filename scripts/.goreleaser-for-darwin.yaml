@@ -16,5 +16,5 @@ builds:
     goarch:
       - amd64
       - arm64
-snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+archives:
+  name_template: "tsddcli_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
