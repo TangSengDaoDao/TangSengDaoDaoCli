@@ -50,7 +50,7 @@ jobs:
     strategy:
       matrix:
         os:
-          - darwin
+          - linux
         arch:
           - amd64
     uses: slsa-framework/slsa-github-generator/.github/workflows/builder_go_slsa3.yml@v1.5.0
