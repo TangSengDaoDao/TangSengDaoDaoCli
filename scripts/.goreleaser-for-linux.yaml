@@ -30,6 +30,6 @@ builds:
         env:
           - CC=aarch64-linux-gnu-gcc    
 archives:
-  - name_template: "tsddcli_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - name_template: "tsddcli-{{ .Os }}-{{ .Arch }}"
 checksum:
-  name_template: "tsddcli_linux_{{ .Version }}_checksums.txt"  
+  name_template: "tsddcli-linux-checksums.txt"  
