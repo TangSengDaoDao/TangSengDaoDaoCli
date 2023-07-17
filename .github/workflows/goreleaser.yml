@@ -60,6 +60,10 @@ jobs:
           args: release --config scripts/.goreleaser-for-linux.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
+          COMMIT_DATE: ${{needs.args.outputs.commit-date}}
+          COMMIT: ${{needs.args.outputs.commit}} 
+          VERSION: ${{needs.args.outputs.version}}
+          TREE_STATE: ${{needs.args.outputs.tree-state}} 
   release-darwin-binary:
     needs: args
     runs-on: macos-latest
@@ -75,7 +79,11 @@ jobs:
         with:
           args: release --config scripts/.goreleaser-for-darwin.yaml
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}           
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   
+          COMMIT_DATE: ${{needs.args.outputs.commit-date}}
+          COMMIT: ${{needs.args.outputs.commit}} 
+          VERSION: ${{needs.args.outputs.version}}
+          TREE_STATE: ${{needs.args.outputs.tree-state}}        
     # uses: tangtaoit/slsa-github-generator/.github/workflows/builder_go_slsa3.yml@v1.5.0
     # with:
     #   go-version: 1.20.3

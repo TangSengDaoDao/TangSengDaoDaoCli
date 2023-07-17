@@ -7,6 +7,10 @@ builds:
     binary: tsddcli
     ldflags:
       - -w -s
+      - -X 'main.Version={{.VERSION}}'
+      - -X 'main.Commit={{.COMMIT}}'
+      - -X 'main.CommitDate={{.COMMIT_DATE}}'
+      - -X 'main.TreeState={{.TREE_STATE}}'
     tags:
       - release
     env:
@@ -28,3 +32,5 @@ builds:
           - CC=aarch64-linux-gnu-gcc    
 archives:
   - name_template: "tsddcli_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+checksum:
+  name_template: "tsddcli_linux_{{ .Version }}_checksums.txt"  
