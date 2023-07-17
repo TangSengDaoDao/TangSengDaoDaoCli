@@ -7,10 +7,9 @@ builds:
     binary: tsddcli
     ldflags:
       - -w -s
-      - -X 'main.Version={{.VERSION}}'
-      - -X 'main.Commit={{.COMMIT}}'
-      - -X 'main.CommitDate={{.COMMIT_DATE}}'
-      - -X 'main.TreeState={{.TREE_STATE}}'
+      - -X main.Version={{.Version}}
+      - -X main.Commit={{.Commit}}
+      - -X main.CommitDate={{.Timestamp}}
     tags:
       - release
     env:

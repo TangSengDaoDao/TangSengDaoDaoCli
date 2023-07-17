@@ -22,28 +22,27 @@ permissions:
 jobs:
   # Generate ldflags dynamically.
   # Optional: only needed for ldflags.
-  args:
-    runs-on: ubuntu-latest
-    outputs:
-      commit-date: ${{ steps.ldflags.outputs.commit-date }}
-      commit: ${{ steps.ldflags.outputs.commit }}
-      version: ${{ steps.ldflags.outputs.version }}
-      tree-state: ${{ steps.ldflags.outputs.tree-state }}
-    steps:
-      - id: checkout
-        uses: actions/checkout@v3 # tag=v2.3.4
-        with:
-          fetch-depth: 0
-      - id: ldflags
-        run: |
-          echo "commit-date=$(git log --date=iso8601-strict -1 --pretty=%ct)" >> "$GITHUB_OUTPUT"
-          echo "commit=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
-          echo "version=$(git describe --tags --always --dirty | cut -c2-)" >> "$GITHUB_OUTPUT"
-          echo "tree-state=$(if git diff --quiet; then echo "clean"; else echo "dirty"; fi)" >> "$GITHUB_OUTPUT"            
+  # args:
+  #   runs-on: ubuntu-latest
+  #   outputs:
+  #     commit-date: ${{ steps.ldflags.outputs.commit-date }}
+  #     commit: ${{ steps.ldflags.outputs.commit }}
+  #     version: ${{ steps.ldflags.outputs.version }}
+  #     tree-state: ${{ steps.ldflags.outputs.tree-state }}
+  #   steps:
+  #     - id: checkout
+  #       uses: actions/checkout@v3 # tag=v2.3.4
+  #       with:
+  #         fetch-depth: 0
+  #     - id: ldflags
+  #       run: |
+  #         echo "commit-date=$(git log --date=iso8601-strict -1 --pretty=%ct)" >> "$GITHUB_OUTPUT"
+  #         echo "commit=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+  #         echo "version=$(git describe --tags --always --dirty | cut -c2-)" >> "$GITHUB_OUTPUT"
+  #         echo "tree-state=$(if git diff --quiet; then echo "clean"; else echo "dirty"; fi)" >> "$GITHUB_OUTPUT"            
             
   # Trusted builder.
   release-linux-binary:
-    needs: args
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -60,12 +59,7 @@ jobs:
           args: release --config scripts/.goreleaser-for-linux.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
-          COMMIT_DATE: ${{needs.args.outputs.commit-date}}
-          COMMIT: ${{needs.args.outputs.commit}} 
-          VERSION: ${{needs.args.outputs.version}}
-          TREE_STATE: ${{needs.args.outputs.tree-state}} 
   release-darwin-binary:
-    needs: args
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
@@ -80,10 +74,6 @@ jobs:
           args: release --config scripts/.goreleaser-for-darwin.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   
-          COMMIT_DATE: ${{needs.args.outputs.commit-date}}
-          COMMIT: ${{needs.args.outputs.commit}} 
-          VERSION: ${{needs.args.outputs.version}}
-          TREE_STATE: ${{needs.args.outputs.tree-state}}        
     # uses: tangtaoit/slsa-github-generator/.github/workflows/builder_go_slsa3.yml@v1.5.0
     # with:
     #   go-version: 1.20.3
