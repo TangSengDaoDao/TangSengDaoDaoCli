@@ -90,6 +90,15 @@ func (i *installCMD) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	}
+	// ==================== 下载Caddy的配置文件 ====================
+	if !i.existCaddyConfig() {
+		// 下载Caddy的配置文件
+		err = i.downloadCaddyConfig(cmd)
+		if err != nil {
+			cmd.Println("download Caddy file error:", err)
+			return err
+		}
+	}
 	// ==================== 取代变量 ====================
 	// 替换.env文件中的变量
 	err = i.replaceDotEnvVarz()
@@ -103,6 +112,11 @@ func (i *installCMD) run(cmd *cobra.Command, args []string) error {
 	}
 	// 替换唐僧叨叨的配置文件中的变量
 	err = i.replaceTsddConfigVarz()
+	if err != nil {
+		return err
+	}
+	// caddy配置
+	err = i.replaceCaddyVarz()
 	if err != nil {
 		return err
 	}
@@ -163,6 +177,19 @@ func (i *installCMD) replaceTsddConfigVarz() error {
 	return err
 }
 
+func (i *installCMD) replaceCaddyVarz() error {
+	confPath := i.caddyConfigPath()
+	content, err := ioutil.ReadFile(confPath)
+	if err != nil {
+		return err
+	}
+	contentStr := string(content)
+	contentStr = strings.ReplaceAll(contentStr, "#APIAddr#", fmt.Sprintf("%s:8090", i.externalIP))
+
+	err = ioutil.WriteFile(confPath, []byte(contentStr), 0644)
+	return err
+}
+
 // 下载docker-compose.yaml文件
 func (i *installCMD) downloadDockerCompose(cmd *cobra.Command) error {
 	// 下载文件
@@ -212,6 +239,21 @@ func (i *installCMD) existTsddConfig() bool {
 	return i.existFile(i.tsddConfigPath())
 }
 
+// 下载Caddy配置文件
+func (i *installCMD) downloadCaddyConfig(cmd *cobra.Command) error {
+
+	wkContentBytes, err := i.ctx.Configs.ReadFile("configs/Caddyfile")
+	if err != nil {
+		return err
+	}
+	destPath := i.caddyConfigPath()
+
+	return ioutil.WriteFile(destPath, []byte(wkContentBytes), 0644)
+}
+func (i *installCMD) existCaddyConfig() bool {
+	return i.existFile(i.caddyConfigPath())
+}
+
 func (i *installCMD) dotEnvPath() string {
 	return path.Join(i.ctx.opts.rootDir, ".env")
 }
@@ -223,6 +265,9 @@ func (i *installCMD) wkConfigPath() string {
 }
 func (i *installCMD) tsddConfigPath() string {
 	return path.Join(i.configDir(), "tsdd.yaml")
+}
+func (i *installCMD) caddyConfigPath() string {
+	return path.Join(i.configDir(), "Caddyfile")
 }
 
 // 获取配置目录
