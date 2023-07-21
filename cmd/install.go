@@ -1,13 +1,10 @@
 package cmd
 
 import (
-	"archive/zip"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 
 	"github.com/TangSengDaoDao/TangSengDaoDaoCli/pkg/util"
@@ -106,12 +103,6 @@ func (i *installCMD) run(cmd *cobra.Command, args []string) error {
 	}
 	// 替换唐僧叨叨的配置文件中的变量
 	err = i.replaceTsddConfigVarz()
-	if err != nil {
-		return err
-	}
-
-	// 复制minio需要的文件
-	err = i.copyAndUnzipAvatar()
 	if err != nil {
 		return err
 	}
@@ -215,68 +206,6 @@ func (i *installCMD) downloadTsddConfig(cmd *cobra.Command) error {
 	}
 	destPath := i.tsddConfigPath()
 	return ioutil.WriteFile(destPath, []byte(tsddContentBytes), 0644)
-}
-
-func (i *installCMD) copyAndUnzipAvatar() error {
-	minioData, err := i.ctx.Configs.ReadFile("configs/miniodata.zip")
-	if err != nil {
-		return err
-	}
-	destPath := path.Join(i.ctx.opts.rootDir, "miniodata.zip")
-	err = ioutil.WriteFile(destPath, []byte(minioData), 0644)
-	if err != nil {
-		return err
-	}
-
-	defer os.Remove(destPath)
-
-	return unzip(destPath, path.Join(i.ctx.opts.rootDir, "/"))
-}
-func unzip(zipFile string, destDir string) error {
-	// 打开 zip 文件
-	r, err := zip.OpenReader(zipFile)
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	// 遍历 zip 文件中的文件
-	for _, f := range r.File {
-		// 获取文件路径
-		path := filepath.Join(destDir, f.Name)
-
-		// 如果是文件夹，创建目录
-		if f.FileInfo().IsDir() {
-			os.MkdirAll(path, os.ModePerm)
-			continue
-		}
-
-		// 打开文件
-		rc, err := f.Open()
-		if err != nil {
-			fmt.Println("err--->", err)
-			return err
-		}
-		defer rc.Close()
-
-		// 创建目标文件
-		dst, err := os.Create(path)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return err
-		}
-		defer dst.Close()
-
-		// 将文件内容复制到目标文件
-		if _, err := io.Copy(dst, rc); err != nil {
-			fmt.Println("err3--->", err)
-			return err
-		}
-	}
-
-	return nil
 }
 
 func (i *installCMD) existTsddConfig() bool {
