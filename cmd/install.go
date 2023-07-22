@@ -115,11 +115,6 @@ func (i *installCMD) run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	// caddy配置
-	err = i.replaceCaddyVarz()
-	if err != nil {
-		return err
-	}
 
 	fmt.Println("Install at ", i.ctx.opts.rootDir)
 	fmt.Println("Install success! please run 'tsdd start' to start service.")
@@ -156,7 +151,7 @@ func (i *installCMD) replaceWkConfigVarz() error {
 	}
 	contentStr := string(content)
 	contentStr = strings.ReplaceAll(contentStr, "#EXTERNAL_IP#", i.externalIP)
-
+	contentStr = strings.ReplaceAll(contentStr, "#GRPC_ADDR#", "tangsengdaodaoserver:6979")
 	err = ioutil.WriteFile(confPath, []byte(contentStr), 0644)
 
 	return err
@@ -172,19 +167,6 @@ func (i *installCMD) replaceTsddConfigVarz() error {
 	contentStr = strings.ReplaceAll(contentStr, "#EXTERNAL_IP#", i.externalIP)
 	contentStr = strings.ReplaceAll(contentStr, "#MYSQL_ROOT_PASSWORD#", i.mysqlPwd)
 	contentStr = strings.ReplaceAll(contentStr, "#MINIO_ROOT_PASSWORD#", i.minioPwd)
-
-	err = ioutil.WriteFile(confPath, []byte(contentStr), 0644)
-	return err
-}
-
-func (i *installCMD) replaceCaddyVarz() error {
-	confPath := i.caddyConfigPath()
-	content, err := ioutil.ReadFile(confPath)
-	if err != nil {
-		return err
-	}
-	contentStr := string(content)
-	contentStr = strings.ReplaceAll(contentStr, "#APIAddr#", fmt.Sprintf("%s:8090", i.externalIP))
 
 	err = ioutil.WriteFile(confPath, []byte(contentStr), 0644)
 	return err
