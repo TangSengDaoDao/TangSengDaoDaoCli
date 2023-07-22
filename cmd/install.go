@@ -224,9 +224,6 @@ func (i *installCMD) wkConfigPath() string {
 func (i *installCMD) tsddConfigPath() string {
 	return path.Join(i.configDir(), "tsdd.yaml")
 }
-func (i *installCMD) caddyConfigPath() string {
-	return path.Join(i.configDir(), "Caddyfile")
-}
 
 // 获取配置目录
 func (i *installCMD) configDir() string {
