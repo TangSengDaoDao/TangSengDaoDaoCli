@@ -90,15 +90,6 @@ func (i *installCMD) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	}
-	// ==================== 下载Caddy的配置文件 ====================
-	if !i.existCaddyConfig() {
-		// 下载Caddy的配置文件
-		err = i.downloadCaddyConfig(cmd)
-		if err != nil {
-			cmd.Println("download Caddy file error:", err)
-			return err
-		}
-	}
 	// ==================== 取代变量 ====================
 	// 替换.env文件中的变量
 	err = i.replaceDotEnvVarz()
@@ -219,21 +210,6 @@ func (i *installCMD) downloadTsddConfig(cmd *cobra.Command) error {
 
 func (i *installCMD) existTsddConfig() bool {
 	return i.existFile(i.tsddConfigPath())
-}
-
-// 下载Caddy配置文件
-func (i *installCMD) downloadCaddyConfig(cmd *cobra.Command) error {
-
-	wkContentBytes, err := i.ctx.Configs.ReadFile("configs/Caddyfile")
-	if err != nil {
-		return err
-	}
-	destPath := i.caddyConfigPath()
-
-	return ioutil.WriteFile(destPath, []byte(wkContentBytes), 0644)
-}
-func (i *installCMD) existCaddyConfig() bool {
-	return i.existFile(i.caddyConfigPath())
 }
 
 func (i *installCMD) dotEnvPath() string {
