@@ -21,6 +21,7 @@ wukongIM:
 db:
  mysqlAddr: "root:#MYSQL_ROOT_PASSWORD#@tcp(mysql)/im?charset=utf8mb4&parseTime=true&loc=Local" # mysql连接地址
  redisAddr: "redis:6379" # redis地址
+ redisPass: "" # redis密码
  #sqlDir: "assets/sql" # 数据库脚本路径
  #migration: true #  是否合并数据库
  #asynctaskRedisAddr: "" # 异步任务的redis地址 不写默认为RedisAddr的地址
@@ -53,13 +54,14 @@ smsCode: "123456" # 测试短信验证码， 如果不为空，则短信验证�
 #  signature: "" # unisms signature  
 
 ##################### 文件服务 ####################
-fileService: "minio" # 文件服务 minio or oss or seaweed
+fileService: "minio" # 文件服务 minio or aliyunOSS or seaweedFS
 minio: # minio配置
 #  url: "" # minio地址 格式：http://xx.xx.xx.xx:9000 
  accessKeyID: "minio" # minio accessKeyID
  secretAccessKey: "#MINIO_ROOT_PASSWORD#"  # minio secretAccessKey
 #oss:  # aliyun oss配置
 #  endpoint: "" # oss endpoint 例如 oss-cn-hangzhou.aliyuncs.com
+#  bucketName: "" # oss bucketName
 #  bucketURL: "" # oss bucketURL 例如 https://xxxx.oss-cn-hangzhou.aliyuncs.com
 #  accessKeyID: "" # oss accessKeyID
 #  accessKeySecret: "" # oss accessKeySecret
